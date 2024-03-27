@@ -1,0 +1,61 @@
+name: app-dev
+services:
+  database:
+    container_name: app-database-dev
+    image: postgres
+    restart: always
+    user: postgres
+    secrets:
+      - db-password
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=teste
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
+    expose:
+      - 5432
+    ports:
+      - 54132:5432
+    healthcheck:
+      test: [ "CMD", "pg_isready" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  web:
+    container_name: app-web-dev
+    restart: always
+    command: npm run dev
+    build:
+      context: ./
+      dockerfile: dev.Dockerfile
+      args:
+        DATABASE_URL: ${DATABASE_URL}
+        NODE_ENV: ${NODE_ENV}
+    ports:
+      - 81:3000
+    env_file:
+      - .env.dev
+    depends_on:
+      database:
+        condition: service_healthy
+        restart: true
+    volumes: 
+     - ./app:/app
+     - output:/app/.next
+     - node_modules:/app/node_modules
+
+# Se você quiser usar uma base de dados diferente da de produção, alterar a propriedade name do volume aqui 
+volumes:
+  db-data:
+    name: "app-database"
+    external: true
+  node_modules:
+    name: "app-node_modules"
+  output:
+    name: "app-output"
+
+# Você pode especificar um arquivo de senha diferente para cada ambiente
+secrets:
+  db-password:
+    file: ./db/password.txt
